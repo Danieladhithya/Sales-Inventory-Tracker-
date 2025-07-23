@@ -1,40 +1,57 @@
 package dao;
-import models.Product;
+
+import models.Sale;
 import utils.DBConnection;
-import java.sql.*;
-import java.util.*;
 
-import java.sql.*;
-import java.util.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 
-public class ProductDAO {
-    public static void addProduct(Product product) throws SQLException {
-        String sql = "INSERT INTO Products (name, quantity, price) VALUES (?, ?, ?)";
+public class SaleDAO {
+
+    public static void addSale(Sale sale) throws SQLException {
+        String sql = "INSERT INTO sales (product_id, quantity_sold) VALUES (?, ?)";
         try (Connection conn = DBConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, product.getName());
-            stmt.setInt(2, product.getQuantity());
-            stmt.setDouble(3, product.getPrice());
-            stmt.executeUpdate();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, sale.getProductId());
+            pstmt.setInt(2, sale.getQuantitySold());
+            pstmt.executeUpdate();
         }
     }
 
-    public static List<Product> getAllProducts() throws SQLException {
-        List<Product> products = new ArrayList<>();
-        String sql = "SELECT * FROM Products";
+    // DTO for Sale Summary (can be an inner class or separate file)
+    public static class SaleSummaryDTO {
+        public String productName;
+        public int totalQuantitySold;
+        public double totalRevenue;
+
+        public SaleSummaryDTO(String productName, int totalQuantitySold, double totalRevenue) {
+            this.productName = productName;
+            this.totalQuantitySold = totalQuantitySold;
+            this.totalRevenue = totalRevenue;
+        }
+    }
+
+    public static List<SaleSummaryDTO> getSalesSummary() throws SQLException {
+        List<SaleSummaryDTO> summary = new ArrayList<>();
+        String sql = "SELECT p.name AS product_name, SUM(s.quantity_sold) AS total_qty_sold, " +
+                     "SUM(s.quantity_sold * p.price) AS total_revenue " +
+                     "FROM sales s JOIN products p ON s.product_id = p.id " +
+                     "GROUP BY p.name ORDER BY total_revenue DESC";
         try (Connection conn = DBConnection.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+             PreparedStatement pstmt = conn.prepareStatement(sql);
+             ResultSet rs = pstmt.executeQuery()) {
             while (rs.next()) {
-                Product p = new Product(
-                        rs.getInt("product_id"),
-                        rs.getString("name"),
-                        rs.getInt("quantity"),
-                        rs.getDouble("price")
-                );
-                products.add(p);
+                summary.add(new SaleSummaryDTO(
+                    rs.getString("product_name"),
+                    rs.getInt("total_qty_sold"),
+                    rs.getDouble("total_revenue")
+                ));
             }
         }
-        return products;
+        return summary;
     }
 }
