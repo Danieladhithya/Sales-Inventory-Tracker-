@@ -1,6 +1,6 @@
 package dao;
 
-import models.Sale;
+import models.Product;
 import utils.DBConnection;
 
 import java.sql.Connection;
@@ -10,48 +10,105 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class SaleDAO {
+public class ProductDAO {
 
-    public static void addSale(Sale sale) throws SQLException {
-        String sql = "INSERT INTO sales (product_id, quantity_sold) VALUES (?, ?)";
+    public static void addProduct(Product product) throws SQLException {
+        String sql = "INSERT INTO products (name, quantity, price) VALUES (?, ?, ?)";
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setInt(1, sale.getProductId());
-            pstmt.setInt(2, sale.getQuantitySold());
+            pstmt.setString(1, product.getName());
+            pstmt.setInt(2, product.getQuantity());
+            pstmt.setDouble(3, product.getPrice());
             pstmt.executeUpdate();
         }
     }
 
-    // DTO for Sale Summary (can be an inner class or separate file)
-    public static class SaleSummaryDTO {
-        public String productName;
-        public int totalQuantitySold;
-        public double totalRevenue;
-
-        public SaleSummaryDTO(String productName, int totalQuantitySold, double totalRevenue) {
-            this.productName = productName;
-            this.totalQuantitySold = totalQuantitySold;
-            this.totalRevenue = totalRevenue;
-        }
-    }
-
-    public static List<SaleSummaryDTO> getSalesSummary() throws SQLException {
-        List<SaleSummaryDTO> summary = new ArrayList<>();
-        String sql = "SELECT p.name AS product_name, SUM(s.quantity_sold) AS total_qty_sold, " +
-                     "SUM(s.quantity_sold * p.price) AS total_revenue " +
-                     "FROM sales s JOIN products p ON s.product_id = p.id " +
-                     "GROUP BY p.name ORDER BY total_revenue DESC";
+    public static List<Product> getAllProducts() throws SQLException {
+        List<Product> products = new ArrayList<>();
+        String sql = "SELECT id, name, quantity, price FROM products";
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql);
              ResultSet rs = pstmt.executeQuery()) {
             while (rs.next()) {
-                summary.add(new SaleSummaryDTO(
-                    rs.getString("product_name"),
-                    rs.getInt("total_qty_sold"),
-                    rs.getDouble("total_revenue")
+                products.add(new Product(
+                    rs.getInt("id"),
+                    rs.getString("name"),
+                    rs.getInt("quantity"),
+                    rs.getDouble("price")
                 ));
             }
         }
-        return summary;
+        return products;
+    }
+
+    public static List<Product> getLimitedProducts(int limit) throws SQLException {
+        List<Product> products = new ArrayList<>();
+        // Use LIMIT clause for fetching a specific number of products
+        String sql = "SELECT id, name, quantity, price FROM products LIMIT ?";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, limit);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    products.add(new Product(
+                        rs.getInt("id"),
+                        rs.getString("name"),
+                        rs.getInt("quantity"),
+                        rs.getDouble("price")
+                    ));
+                }
+            }
+        }
+        return products;
+    }
+
+    public static Product getProductById(int id) throws SQLException {
+        String sql = "SELECT id, name, quantity, price FROM products WHERE id = ?";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, id);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return new Product(
+                        rs.getInt("id"),
+                        rs.getString("name"),
+                        rs.getInt("quantity"),
+                        rs.getDouble("price")
+                    );
+                }
+            }
+        }
+        return null; // Product not found
+    }
+
+    public static void updateProduct(Product product) throws SQLException {
+        String sql = "UPDATE products SET name = ?, quantity = ?, price = ? WHERE id = ?";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, product.getName());
+            pstmt.setInt(2, product.getQuantity());
+            pstmt.setDouble(3, product.getPrice());
+            pstmt.setInt(4, product.getId());
+            pstmt.executeUpdate();
+        }
+    }
+
+    public static void deleteProduct(int id) throws SQLException {
+        String sql = "DELETE FROM products WHERE id = ?";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, id);
+            pstmt.executeUpdate();
+        }
+    }
+
+    public static void updateProductQuantity(int productId, int newQuantity) throws SQLException {
+        String sql = "UPDATE products SET quantity = ? WHERE id = ?";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, newQuantity);
+            pstmt.setInt(2, productId);
+            pstmt.executeUpdate();
+        }
     }
 }
